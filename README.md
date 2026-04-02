@@ -53,6 +53,10 @@ cp -r wrap-unwrap/unwrap ~/.claude/skills/unwrap
 
 Then use `/wrap` and `/unwrap` in Claude Code.
 
+## First use
+
+On first `/wrap`, the skill automatically sets `showClearContextOnPlanAccept: true` in `~/.claude/settings.json`. This enables the "clear context" checkbox when accepting a plan, which is what makes instant same-session continuation work. This only happens once.
+
 ## Requirements
 
 - Claude Code with plan mode support
