@@ -36,6 +36,12 @@ echo "=== PROJECT ==="
 pwd
 echo "=== BRANCH ==="
 git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "NO_GIT"
+echo "=== REMOTE ==="
+git remote get-url origin 2>/dev/null || echo "NO_REMOTE"
+echo "=== REPO_NAME ==="
+basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "NO_GIT"
+echo "=== REPO_ROOT ==="
+git rev-parse --show-toplevel 2>/dev/null || echo "NO_GIT"
 echo "=== STATUS ==="
 git status --short 2>/dev/null || echo "NO_GIT"
 echo "=== RECENT LOG ==="
@@ -44,7 +50,9 @@ echo "=== SESSION DIFF ==="
 git diff --name-only HEAD~10..HEAD 2>/dev/null || echo "NO_GIT"
 ```
 
-If not a git repo, skip "Files Changed" in the outputs. Everything else still works.
+If not a git repo, skip git-dependent sections. Everything else still works.
+
+**Repo identity**: If git is available, capture the repo name (from `REPO_NAME`), the full path to the repo root (from `REPO_ROOT`), and the remote URL (from `REMOTE`). These anchor the next session to the correct repository even if opened from a different directory.
 
 ### Step 3: Classify session items
 
@@ -183,13 +191,15 @@ Using the final item list, git state, and conversation context, produce the brie
 - LLM-optimized structure. This is for Claude to read, not a human README.
 
 **Briefing sections:**
-1. **Working On** — the high-level goal (1-2 sentences)
-2. **Current State** — what's done, what's in progress
-3. **Direction** — key decisions, framed as forward instructions ("use X because Y")
-4. **Resume Here** — 1-3 items, top priority, grounded in evidence
-5. **Remaining Work** — items confirmed as real but not first priority
-6. **Parking Lot** — items explicitly parked by user, low priority, next session should NOT act on these unless user promotes them
-7. **Files Changed** — from git status (skip if non-git)
+1. **Workspace** — ALWAYS FIRST. The repo name, repo root path, branch, and remote URL (if git). For non-git sessions, the working directory and a description of what project/files this session was about. This anchors the next session to the correct location. Example: "Repo: Portal, Path: ~/Portal/Portal/, Branch: feature/auth, Remote: git@github.com:aplayerlabs/Portal.git"
+2. **Working On** — the high-level goal (1-2 sentences)
+3. **Current State** — what's done, what's in progress
+4. **Direction** — key decisions, framed as forward instructions ("use X because Y")
+5. **Boundaries** — constraints and prohibitions from this session. If the user said "don't touch X", "leave Y alone", "don't refactor Z", or rejected an approach, capture it here. These survive the handoff so the next session doesn't repeat mistakes. If no boundaries were set, omit this section.
+6. **Resume Here** — 1-3 items, top priority, grounded in evidence
+7. **Remaining Work** — items confirmed as real but not first priority
+8. **Parking Lot** — items explicitly parked by user, low priority, next session should NOT act on these unless user promotes them
+9. **Files Changed** — from git status (skip if non-git)
 
 ### Step 5: Write SESH.md
 
@@ -243,18 +253,26 @@ Write the checkpoint file to `~/.wrap/checkpoints/{TIMESTAMP}-{title-slug}.md`:
 status: in-progress
 branch: [branch or "n/a"]
 timestamp: [ISO-8601]
-project: [absolute path to project root]
+project: [absolute path to repo root, or pwd if non-git]
+repo: [repo name or "n/a"]
+remote: [git remote URL or "n/a"]
 files_modified:
   - path/to/file
 ---
 
 ## Working on: [title]
 
+### Workspace
+[Repo name, repo root path, branch, remote URL. For non-git: working directory + project description. This is the FIRST thing the next session reads to orient itself.]
+
 ### Summary
 [1-3 sentences covering goal and progress]
 
 ### Direction
 [decisions framed as forward instructions]
+
+### Boundaries
+[constraints and prohibitions — "don't touch X", "leave Y alone", rejected approaches. Omit if none.]
 
 ### Resume Here
 1. [top priority item]
@@ -276,9 +294,14 @@ Call the `EnterPlanMode` tool.
 Write the briefing as the plan document. Use this format:
 
 ```markdown
-# Session Continuation: [title]
+# Session Briefing: [title]
 
-Wrapped at [timestamp] on branch [branch].
+⚠️ THIS IS A BRIEFING, NOT A PLAN TO IMPLEMENT. Do not start building, coding, or executing anything from this document. Wait for the user to tell you what to work on. Present the "Resume Here" items and ask what they want to tackle.
+
+Wrapped at [timestamp].
+
+## Workspace
+[from briefing — repo name, path, branch, remote. This orients the next session FIRST.]
 
 ## Working On
 [from briefing]
@@ -289,8 +312,11 @@ Wrapped at [timestamp] on branch [branch].
 ## Direction
 [from briefing]
 
+## Boundaries
+[from briefing — constraints and prohibitions. Omit section if none.]
+
 ## Resume Here
-[from briefing — these are the top priority items for the next session]
+[from briefing — suggested starting points, NOT instructions to execute]
 
 ## Remaining Work
 [from briefing — real work, not urgent]
